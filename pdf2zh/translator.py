@@ -24,6 +24,8 @@ from tencentcloud.tmt.v20180321.tmt_client import TmtClient
 from pdf2zh.cache import TranslationCache
 from pdf2zh.config import ConfigManager
 
+from pdf2zh.usage_logger import log_usage, check_daily_limit
+
 
 from tenacity import retry, retry_if_exception_type
 from tenacity import stop_after_attempt
@@ -442,6 +444,8 @@ class OpenAITranslator(BaseTranslator):
         ),
     )
     def do_translate(self, text) -> str:
+        check_daily_limit()
+
         response = self.client.chat.completions.create(
             model=self.model,
             **self.options,
@@ -452,6 +456,35 @@ class OpenAITranslator(BaseTranslator):
                 raise ValueError("Error response from Service", response.error)
         content = response.choices[0].message.content.strip()
         content = self.think_filter_regex.sub("", content).strip()
+
+        input_tokens_used = response.usage.prompt_tokens
+        output_tokens_used = response.usage.completion_tokens
+        tokens_used = input_tokens_used + output_tokens_used
+        input_costs = {
+            "gpt-4-0613": 0.00003,
+            "gpt-3.5-turbo-0613": 0.0000005,
+            "gpt-4o-2024-05-13": 0.000005,
+            "gpt-4o": 0.0000025, 
+            "gpt-4o-mini": 0.00000015,
+            "gpt-4.1-mini": 0.0000004,
+            "o3": 0.
+        }
+        output_costs = {
+            "gpt-4-0613": 0.00006,
+            "gpt-3.5-turbo-0613": 0.0000015,
+            "gpt-4o-2024-05-13": 0.000015,
+            "gpt-4o": 0.00001,  
+            "gpt-4o-mini": 0.0000006,
+            "gpt-4.1-mini": 0.0000016,
+            "o3": 0.
+        }
+        cost_incurred = input_tokens_used * input_costs[self.model] + \
+                       output_tokens_used * output_costs[self.model]
+        log_usage(tokens_used, cost_incurred)
+        # print(
+        #     f"Tokens used: {tokens_used}, Cost incurred: {cost_incurred:.6f} USD"
+        # )
+
         return content
 
     def get_formular_placeholder(self, id: int):

@@ -82,7 +82,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--lang-out",
         "-lo",
         type=str,
-        default="zh",
+        default="ja", # modified from "zh",
         help="The code of target language.",
     )
     parse_params.add_argument(
