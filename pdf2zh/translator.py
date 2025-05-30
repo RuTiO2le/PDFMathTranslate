@@ -467,6 +467,7 @@ class OpenAITranslator(BaseTranslator):
             "gpt-4o": 0.0000025, 
             "gpt-4o-mini": 0.00000015,
             "gpt-4.1-mini": 0.0000004,
+            "gpt-4.1": 0.000002,
             "o3": 0.
         }
         output_costs = {
@@ -476,6 +477,7 @@ class OpenAITranslator(BaseTranslator):
             "gpt-4o": 0.00001,  
             "gpt-4o-mini": 0.0000006,
             "gpt-4.1-mini": 0.0000016,
+            "gpt-4.1": 0.000008,
             "o3": 0.
         }
         cost_incurred = input_tokens_used * input_costs[self.model] + \
@@ -1000,6 +1002,118 @@ class OpenAIlikedTranslator(OpenAITranslator):
         )
         self.prompttext = prompt
 
+class PlamoTranslator(BaseTranslator):
+    """
+    Translator using Plamo-2 model with vllm or mlx for efficient inference.
+    Plamo-2 is a specialized translation model developed by Preferred Networks.
+    """
+    name = "plamo"
+    envs = {
+        "PLAMO_MODEL": "pfnet/plamo-2-translate",
+        "PLAMO_MAX_MODEL_LEN": "2000",
+        "PLAMO_MAX_NUM_BATCHED_TOKENS": "2000",
+    }
+
+    def __init__(
+        self, lang_in, lang_out, model, envs=None, ignore_cache=False, backend="mlx", **kwargs
+    ):
+        self.set_envs(envs)
+        if not model:
+            model = self.envs["PLAMO_MODEL"]
+        super().__init__(lang_in, lang_out, model, ignore_cache)
+        self.backend = backend
+        self.stop_token = "<|plamo:op|>"
+        self._lang_map = {
+            "en": "English",
+            "ja": "Japanese",
+            "zh": "Chinese",
+            "ko": "Korean",
+            "fr": "French",
+            "de": "German",
+            "es": "Spanish",
+            "pt": "Portuguese",
+            "it": "Italian",
+            "nl": "Dutch",
+            "ru": "Russian"
+        }
+        if backend == "vllm":
+            try:
+                import vllm
+                self.vllm = vllm
+            except ImportError:
+                raise ImportError("vllm package is required for PlamoTranslator with backend='vllm'. Install it with 'pip install vllm'.")
+            self.llm = self.vllm.LLM(
+                model=model, 
+                trust_remote_code=True, 
+                max_model_len=int(self.envs["PLAMO_MAX_MODEL_LEN"]),
+                max_num_batched_tokens=int(self.envs["PLAMO_MAX_NUM_BATCHED_TOKENS"])
+            )
+        elif backend == "mlx":
+            try:
+                import mlx.core as mx
+                import mlx.nn as nn
+                from mlx_lm import load
+            except ImportError:
+                raise ImportError("mlx and mlx_lm are required for PlamoTranslator with backend='mlx'. Install them with 'pip install mlx mlx-lm'.")
+            self.mx = __import__("mlx.core", fromlist=["mx"])
+            self.nn = __import__("mlx.nn", fromlist=["nn"])
+            self.load = load
+            self.model, self.tokenizer = load(
+                "mlx-community/plamo-2-translate",
+                tokenizer_config={"eos_token": self.stop_token, "trust_remote_code": True},
+            )
+            self.eos_token_id = self.tokenizer.convert_tokens_to_ids(self.stop_token)
+        else:
+            raise ValueError("backend must be either 'vllm' or 'mlx'")
+        self.add_cache_impact_parameters("model", model)
+        self.add_cache_impact_parameters("backend", backend)
+
+    def _get_lang_code(self, lang):
+        """Map language code to Plamo's expected format"""
+        return self._lang_map.get(lang.lower(), lang)
+
+    def do_translate(self, text):
+        input_lang = self._get_lang_code(self.lang_in)
+        output_lang = self._get_lang_code(self.lang_out)
+        prompt = f'''<|plamo:op|>dataset
+translation
+<|plamo:op|>input lang={input_lang}
+{text}
+<|plamo:op|>output lang={output_lang}
+'''
+        if self.backend == "vllm":
+            sampling_params = self.vllm.SamplingParams(
+                temperature=0,
+                max_tokens=max(1024, len(text) * 2),
+                stop=[self.stop_token]
+            )
+            responses = self.llm.generate([prompt], sampling_params=sampling_params)
+            translated_text = responses[0].outputs[0].text.strip()
+            return translated_text
+        elif self.backend == "mlx":
+            # Prepare chat template
+            message = [{"role": "user", "content": prompt}]
+            prompt_str = self.tokenizer.apply_chat_template(
+                message,
+                add_generation_prompt=True,
+            )
+            def generate_until_eos(model, tokenizer, prompt: str, eos_token_id=None, max_new_tokens=100):
+                import mlx.core as mx
+                input_ids = tokenizer.encode(prompt)
+                generated_ids = []
+                for _ in range(max_new_tokens):
+                    logits = model(mx.array([input_ids[:] + generated_ids]))[0]
+                    next_token_logits = logits[-1]
+                    next_token = int(mx.argmax(next_token_logits).item())
+                    generated_ids.append(next_token)
+                    if eos_token_id is not None and next_token == eos_token_id:
+                        break
+                output_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+                return output_text
+            output = generate_until_eos(self.model, self.tokenizer, prompt_str, self.eos_token_id, max_new_tokens=1024)
+            return output.strip()
+        else:
+            raise ValueError("Unknown backend for PlamoTranslator")
 
 class QwenMtTranslator(OpenAITranslator):
     """

@@ -383,6 +383,7 @@ def yadt_main(parsed_args) -> int:
         DeepseekTranslator,
         OpenAIlikedTranslator,
         QwenMtTranslator,
+        PlamoTranslator,
     )
 
     for translator in [
@@ -408,6 +409,7 @@ def yadt_main(parsed_args) -> int:
         DeepseekTranslator,
         OpenAIlikedTranslator,
         QwenMtTranslator,
+        PlamoTranslator,
     ]:
         if service_name == translator.name:
             translator = translator(
@@ -442,7 +444,7 @@ def yadt_main(parsed_args) -> int:
 
         async def yadt_translate_coro(yadt_config):
             progress_context, progress_handler = create_progress_handler(yadt_config)
-            # 开始翻译
+            # Initialize the progress handler
             with progress_context:
                 async for event in yadt_translate(yadt_config):
                     progress_handler(event)
