@@ -34,12 +34,13 @@ from pdf2zh.translator import (
     OllamaTranslator,
     OpenAIlikedTranslator,
     OpenAITranslator,
+    PlamoAPITranslator,
+    PlamoTranslator, 
     QwenMtTranslator,
     SiliconTranslator,
     TencentTranslator,
     XinferenceTranslator,
     ZhipuTranslator,
-    PlamoTranslator, 
 )
 
 log = logging.getLogger(__name__)
@@ -160,12 +161,12 @@ class TranslateConverter(PDFConverterEx):
         if not envs:
             envs = {}
         # Force single-thread for PlamoTranslator (MLX/vLLM are not thread-safe)
-        if service_name == "plamo":
+        if service_name == "plamo-local":
             self.thread = 1
         for translator in [
             GoogleTranslator, BingTranslator, DeepLTranslator, DeepLXTranslator, OllamaTranslator, XinferenceTranslator, AzureOpenAITranslator,
             OpenAITranslator, ZhipuTranslator, ModelScopeTranslator, SiliconTranslator, GeminiTranslator, AzureTranslator, TencentTranslator, DifyTranslator, AnythingLLMTranslator, ArgosTranslator, GrokTranslator, GroqTranslator, DeepseekTranslator, OpenAIlikedTranslator, QwenMtTranslator,
-            PlamoTranslator, 
+            PlamoTranslator, PlamoAPITranslator
         ]:
             if service_name == translator.name:
                 self.translator = translator(lang_in, lang_out, service_model, envs=envs, prompt=prompt, ignore_cache=ignore_cache)

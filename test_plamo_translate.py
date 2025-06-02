@@ -19,10 +19,18 @@
 
 from mlx_lm import load, generate
 
+# CLIで量子化
+# mlx_lm.convert \
+#   --hf-path mlx-community/plamo-2-translate \
+#   --mlx-path ./plamo-2-translate-8bit \
+#   -q --q-bits 8
+
 # モデルのロード
 stop_token = "<|plamo:op|>"
+model_name = "mlx-community/plamo-2-translate"
+
 model, tokenizer = load(
-    "mlx-community/plamo-2-translate",
+    model_name,
     tokenizer_config={"eos_token": stop_token, "trust_remote_code": True},
 )
 

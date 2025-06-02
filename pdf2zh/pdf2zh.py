@@ -96,7 +96,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--output",
         "-o",
         type=str,
-        default="",
+        default="./translated_pdf",
         help="Output directory for files.",
     )
     parse_params.add_argument(
@@ -384,6 +384,7 @@ def yadt_main(parsed_args) -> int:
         OpenAIlikedTranslator,
         QwenMtTranslator,
         PlamoTranslator,
+        PlamoAPITranslator,
     )
 
     for translator in [
@@ -410,6 +411,7 @@ def yadt_main(parsed_args) -> int:
         OpenAIlikedTranslator,
         QwenMtTranslator,
         PlamoTranslator,
+        PlamoAPITranslator,
     ]:
         if service_name == translator.name:
             translator = translator(
@@ -421,8 +423,7 @@ def yadt_main(parsed_args) -> int:
                 ignore_cache=ignore_cache,
             )
             break
-    else:
-        raise ValueError("Unsupported translation service")
+
     import asyncio
 
     for file in untranlate_file:

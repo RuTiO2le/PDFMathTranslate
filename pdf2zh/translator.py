@@ -1007,7 +1007,7 @@ class PlamoTranslator(BaseTranslator):
     Translator using Plamo-2 model with vllm or mlx for efficient inference.
     Plamo-2 is a specialized translation model developed by Preferred Networks.
     """
-    name = "plamo"
+    name = "plamo-local"
     envs = {
         "PLAMO_MODEL": "pfnet/plamo-2-translate",
         "PLAMO_MAX_MODEL_LEN": "2000",
@@ -1042,11 +1042,14 @@ class PlamoTranslator(BaseTranslator):
                 self.vllm = vllm
             except ImportError:
                 raise ImportError("vllm package is required for PlamoTranslator with backend='vllm'. Install it with 'pip install vllm'.")
+            # Use default values if environment variables are None.
+            max_model_len = int(self.envs.get("PLAMO_MAX_MODEL_LEN") or 2000)
+            max_num_batched_tokens = int(self.envs.get("PLAMO_MAX_NUM_BATCHED_TOKENS") or 2000)
             self.llm = self.vllm.LLM(
                 model=model, 
                 trust_remote_code=True, 
-                max_model_len=int(self.envs["PLAMO_MAX_MODEL_LEN"]),
-                max_num_batched_tokens=int(self.envs["PLAMO_MAX_NUM_BATCHED_TOKENS"])
+                max_model_len=max_model_len,
+                max_num_batched_tokens=max_num_batched_tokens
             )
         elif backend == "mlx":
             try:
@@ -1189,3 +1192,106 @@ class QwenMtTranslator(OpenAITranslator):
             extra_body={"translation_options": translation_options},
         )
         return response.choices[0].message.content.strip()
+
+class PlamoAPITranslator(BaseTranslator):
+    """
+    Translator using PLaMo API with OpenAI-compatible endpoints.
+    Uses specialized Plamo translation models for high-quality translations.
+    The model accepts both language pairs and optional style parameters.
+    """
+    name = "plamo"
+    envs = {
+        "PLAMO_API_BASE_URL": {
+            "plamo2-8b-translation": os.getenv("PLAMO_TRANSLATE_BASE_URL"),
+            "plamo2-8b-translation-sft": os.getenv("PLAMO_TRANSLATE_SFT_BASE_URL"),
+        },
+        "PLAMO_API_MODEL": "plamo2-8b-translation-sft",
+        "PLAMO_API_KEY": os.getenv("PLAMO_TRANSLATE_API_KEY"),
+    }
+
+    def __init__(
+        self, lang_in, lang_out, model, envs=None, ignore_cache=False, style=None, **kwargs
+    ):
+        print("DEBUG: self.__class__ =", self.__class__)
+        self.set_envs(envs)
+        if not model:
+            model = self.envs.get("PLAMO_API_MODEL", "plamo-2-8b-translation-32k")
+            print(f'\n\n\n\nself.envs.get("PLAMO_API_MODEL")：{self.envs.get("PLAMO_API_MODEL")}') # None
+
+        super().__init__(lang_in, lang_out, model, ignore_cache)
+
+        base_urls = self.envs.get("PLAMO_API_BASE_URL", {})
+        base_url = base_urls.get(model, os.getenv("PLAMO_TRANSLATE_SFT_BASE_URL"))
+        api_key = self.envs.get("PLAMO_API_KEY", os.getenv("PLAMO_TRANSLATE_API_KEY"))
+
+        # Debugging output
+        print(self.envs)
+        print(model, base_url, api_key)
+        
+        # Setup OpenAI client
+        self.client = openai.OpenAI(
+            base_url=base_url,
+            api_key=api_key,
+        )
+        
+        # Set translation style if provided
+        self.style = style
+        
+        # Language mapping for PLaMo
+        self._lang_map = {
+            "en": "English",
+            "ja": "Japanese",
+            "zh": "Chinese",
+            "ko": "Korean",
+            "fr": "French",
+            "de": "German",
+            "es": "Spanish",
+            "pt": "Portuguese",
+            "it": "Italian",
+            "nl": "Dutch",
+            "ru": "Russian"
+        }
+        
+        self.add_cache_impact_parameters("model", model)
+        self.add_cache_impact_parameters("base_url", base_url)
+        if style:
+            self.add_cache_impact_parameters("style", style)
+    
+    def _get_lang_name(self, lang_code):
+        """Map language code to PLaMo's expected language name"""
+        return self._lang_map.get(lang_code.lower(), lang_code)
+    
+    def do_translate(self, text):
+        input_lang = self._get_lang_name(self.lang_in)
+        output_lang = self._get_lang_name(self.lang_out)
+        
+        # Add style parameter if specified
+        style_param = ""
+        if hasattr(self, 'style') and self.style:
+            style_param = f" style={self.style}"
+        
+        # Construct PLaMo's specific prompt format with language pair format
+        message = f"""<|plamo:op|>dataset
+translation
+<|plamo:op|>input{style_param} lang={input_lang}
+{text}
+<|plamo:op|>output lang={output_lang}"""
+        
+        print(f"{len(text) * 3}", end="   ")
+        # Use completions API as shown in the example
+        response = self.client.completions.create(
+            prompt=message,
+            model=self.model,
+            temperature=0.0,
+            max_tokens=min(5096, len(text) * 3),  # Adjust based on input length
+            stop=["<|plamo:op|>"],
+        )
+        
+        # Extract the output from the response
+        output = response.choices[0].text
+        
+        # If the response contains a newline, split and take everything after the first line
+        if "\n" in output:
+            _, output = output.split("\n", 1)
+            
+        return output.strip()
