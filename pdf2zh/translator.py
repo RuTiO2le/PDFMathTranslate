@@ -460,32 +460,14 @@ class OpenAITranslator(BaseTranslator):
         input_tokens_used = response.usage.prompt_tokens
         output_tokens_used = response.usage.completion_tokens
         tokens_used = input_tokens_used + output_tokens_used
-        input_costs = {
-            "gpt-4-0613": 0.00003,
-            "gpt-3.5-turbo-0613": 0.0000005,
-            "gpt-4o-2024-05-13": 0.000005,
-            "gpt-4o": 0.0000025, 
-            "gpt-4o-mini": 0.00000015,
-            "gpt-4.1-mini": 0.0000004,
-            "gpt-4.1": 0.000002,
-            "o3": 0.
-        }
-        output_costs = {
-            "gpt-4-0613": 0.00006,
-            "gpt-3.5-turbo-0613": 0.0000015,
-            "gpt-4o-2024-05-13": 0.000015,
-            "gpt-4o": 0.00001,  
-            "gpt-4o-mini": 0.0000006,
-            "gpt-4.1-mini": 0.0000016,
-            "gpt-4.1": 0.000008,
-            "o3": 0.
-        }
-        cost_incurred = input_tokens_used * input_costs[self.model] + \
-                       output_tokens_used * output_costs[self.model]
-        log_usage(tokens_used, cost_incurred)
-        # print(
-        #     f"Tokens used: {tokens_used}, Cost incurred: {cost_incurred:.6f} USD"
-        # )
+        
+        # 動的な価格計算を使用
+        log_usage(
+            tokens_used,
+            model=self.model,
+            input_tokens=input_tokens_used,
+            output_tokens=output_tokens_used
+        )
 
         return content
 
@@ -1200,29 +1182,33 @@ class PlamoAPITranslator(BaseTranslator):
     The model accepts both language pairs and optional style parameters.
     """
     name = "plamo"
+    # envsの書き換えは、~/.config/PDFMathTranslate/config.jsonにある既存の環境変数を上書きすることはできないため、一度消すなど対応が必要
     envs = {
         "PLAMO_API_BASE_URL": {
             "plamo2-8b-translation": os.getenv("PLAMO_TRANSLATE_BASE_URL"),
             "plamo2-8b-translation-sft": os.getenv("PLAMO_TRANSLATE_SFT_BASE_URL"),
+            "plamo-2.0-translate": os.getenv("PLAMO_TRANSLATE_BASE_URL")
         },
-        "PLAMO_API_MODEL": "plamo2-8b-translation-sft",
-        "PLAMO_API_KEY": os.getenv("PLAMO_TRANSLATE_API_KEY"),
+        "PLAMO_API_MODEL": "plamo-2.0-translate",
+        "MODEL_CALL": {
+            "plamo2-8b-translation": "plamo-2-8b-translation-32k",
+            "plamo2-8b-translation-sft": "plamo-2-8b-translation-32k",
+            "plamo-2.0-translate": "plamo-2.0-translate",
+        },
+        "PLAMO_TRANSLATE_API_KEY": os.getenv("PLAMO_TRANSLATE_API_KEY"),
     }
 
     def __init__(
         self, lang_in, lang_out, model, envs=None, ignore_cache=False, style=None, **kwargs
     ):
-        print("DEBUG: self.__class__ =", self.__class__)
         self.set_envs(envs)
         if not model:
-            model = self.envs.get("PLAMO_API_MODEL", "plamo-2-8b-translation-32k")
-            print(f'\n\n\n\nself.envs.get("PLAMO_API_MODEL")：{self.envs.get("PLAMO_API_MODEL")}') # None
+            model = self.envs["PLAMO_API_MODEL"]
 
         super().__init__(lang_in, lang_out, model, ignore_cache)
 
-        base_urls = self.envs.get("PLAMO_API_BASE_URL", {})
-        base_url = base_urls.get(model, os.getenv("PLAMO_TRANSLATE_SFT_BASE_URL"))
-        api_key = self.envs.get("PLAMO_API_KEY", os.getenv("PLAMO_TRANSLATE_API_KEY"))
+        base_url = self.envs["PLAMO_API_BASE_URL"][model]#, os.getenv("PLAMO_TRANSLATE_SFT_BASE_URL"))
+        api_key = self.envs["PLAMO_TRANSLATE_API_KEY"]#, os.getenv("PLAMO_TRANSLATE_API_KEY"))
 
         # Debugging output
         print(self.envs)
@@ -1265,33 +1251,67 @@ class PlamoAPITranslator(BaseTranslator):
         input_lang = self._get_lang_name(self.lang_in)
         output_lang = self._get_lang_name(self.lang_out)
         
-        # Add style parameter if specified
-        style_param = ""
-        if hasattr(self, 'style') and self.style:
-            style_param = f" style={self.style}"
+        model_name = self.envs["MODEL_CALL"][self.model]
         
-        # Construct PLaMo's specific prompt format with language pair format
-        message = f"""<|plamo:op|>dataset
+        # plamo-2.0-translateモデルはChat APIフォーマットを使用する
+        if self.model == "plamo-2.0-translate":
+            # Add style parameter if specified
+            if hasattr(self, 'style') and self.style:
+                source_lang_props = f"lang={input_lang}|{output_lang} style={self.style}"
+            else:
+                source_lang_props = f"lang={input_lang}|{output_lang}"
+            
+            target_lang_props = f"lang={input_lang}|{output_lang}"
+            
+            messages = [
+                {
+                    "role": "user",
+                    "content": f"input {source_lang_props}\n{text}"
+                },
+                {
+                    "role": "assistant",
+                    "content": f"output {target_lang_props}\n"
+                }
+            ]
+            
+            response = self.client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=0.0,
+                max_tokens=15000,
+                stop=["<|plamo:op|>", "<|plamo:bos|>", "<|plamo:eos|>"]
+            )
+            
+            output = response.choices[0].message.content
+            return output.strip()
+        else:
+            # 既存のモデル用のコード
+            # Add style parameter if specified
+            style_param = ""
+            if hasattr(self, 'style') and self.style:
+                style_param = f" style={self.style}"
+            
+            # Construct PLaMo's specific prompt format with language pair format
+            message = f"""<|plamo:op|>dataset
 translation
 <|plamo:op|>input{style_param} lang={input_lang}
 {text}
 <|plamo:op|>output lang={output_lang}"""
-        
-        print(f"{len(text) * 3}", end="   ")
-        # Use completions API as shown in the example
-        response = self.client.completions.create(
-            prompt=message,
-            model=self.model,
-            temperature=0.0,
-            max_tokens=min(5096, len(text) * 3),  # Adjust based on input length
-            stop=["<|plamo:op|>"],
-        )
-        
-        # Extract the output from the response
-        output = response.choices[0].text
-        
-        # If the response contains a newline, split and take everything after the first line
-        if "\n" in output:
-            _, output = output.split("\n", 1)
             
-        return output.strip()
+            # Use completions API as shown in the example
+            response = self.client.completions.create(
+                prompt=message,
+                model=model_name,
+                temperature=0.0,
+                max_tokens=min(5096, len(text) * 3),  # Adjust based on input length
+                stop=["<|plamo:op|>"],
+            )
+            
+            # Extract the output from the response
+            output = response.choices[0].text
+            
+            # If the response contains a newline, split and take everything after the first line
+            if "\n" in output:
+                _, output = output.split("\n", 1)
+                
+            return output.strip()

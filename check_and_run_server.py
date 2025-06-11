@@ -34,5 +34,6 @@ else:
     threading.Thread(target=shutdown_server, daemon=True).start()
 
     # Google Chromeで指定されたファイルを開く
-    url = f"http://localhost:{PORT}/{filename}"
+    # url = f"http://localhost:{PORT}/{filename}"
+    url = f"http://localhost:{PORT}/translated_pdf/{filename.replace('.pdf', '')}-dual.pdf"
     subprocess.run(["open", "-a", "Google Chrome", url])

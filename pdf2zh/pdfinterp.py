@@ -57,9 +57,11 @@ class PDFPageInterpreterEx(PDFPageInterpreter):
     def __init__(
         self, rsrcmgr: PDFResourceManager, device: PDFDevice, obj_patch
     ) -> None:
-        self.rsrcmgr = rsrcmgr
-        self.device = device
+        super().__init__(rsrcmgr, device)
         self.obj_patch = obj_patch
+        # Ensure ncs and scs are initialized
+        self.ncs = None
+        self.scs = None
 
     def dup(self) -> "PDFPageInterpreterEx":
         return self.__class__(self.rsrcmgr, self.device, self.obj_patch)
@@ -67,11 +69,11 @@ class PDFPageInterpreterEx(PDFPageInterpreter):
     def init_resources(self, resources: Dict[object, object]) -> None:
         # 重载设置 fontid 和 descent
         """Prepare the fonts and XObjects listed in the Resource attribute."""
-        self.resources = resources
-        self.fontmap: Dict[object, PDFFont] = {}
+        # Call parent class method to initialize ncs and other attributes
+        super().init_resources(resources)
+        
+        # Add custom fontid mapping
         self.fontid: Dict[PDFFont, object] = {}
-        self.xobjmap = {}
-        self.csmap: Dict[str, PDFColorSpace] = PREDEFINED_COLORSPACE.copy()
         if not resources:
             return
 

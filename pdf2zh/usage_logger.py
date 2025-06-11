@@ -1,25 +1,70 @@
 import os
-import datetime
+from datetime import datetime, timezone
 from filelock import FileLock
+from typing import Optional
+from .price_scraper import PriceData
 
 # ログファイルのパス
 LOG_DIR = os.path.expanduser("~/.llm_usage_log")
 LOG_FILE = os.path.join(LOG_DIR, "openai.txt")
 LOCK_FILE = os.path.join(LOG_DIR, "openai.txt.lock")
 
+# 価格データマネージャーの初期化
+price_data = PriceData()
 
-def log_usage(tokens, cost):
+
+def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+    """
+    モデルとトークン数から料金を計算
+    
+    Args:
+        model: 使用したモデル名
+        input_tokens: 入力トークン数
+        output_tokens: 出力トークン数
+        
+    Returns:
+        float: 計算されたコスト（ドル）
+    """
+    # 価格情報の更新チェック
+    price_data.update_if_needed()
+    
+    # モデルの価格を取得
+    prices = price_data.get_price(model)
+    if prices is None:
+        # 価格が見つからない場合はデフォルト価格を使用
+        print(f"Warning: Price not found for model {model}. Using default.")
+        prices = {"input": 0.01, "output": 0.03}  # デフォルト価格
+    
+    # コストを計算（価格は1Mトークンあたり）
+    input_cost = (input_tokens / 1_000_000) * prices["input"]
+    output_cost = (output_tokens / 1_000_000) * prices["output"]
+    
+    return input_cost + output_cost
+
+
+def log_usage(tokens: int, cost: Optional[float] = None, model: Optional[str] = None,
+              input_tokens: Optional[int] = None, output_tokens: Optional[int] = None):
     """
     使用量をログファイルに記録します。
-    :param tokens: 消費したトークン数
-    :param cost: かかった金額
+    
+    Args:
+        tokens: 消費した総トークン数
+        cost: かかった金額（省略時は自動計算）
+        model: 使用したモデル名（cost自動計算時に必要）
+        input_tokens: 入力トークン数（cost自動計算時に必要）
+        output_tokens: 出力トークン数（cost自動計算時に必要）
     """
+    # コストが指定されていない場合は計算
+    if cost is None:
+        if model is None or input_tokens is None or output_tokens is None:
+            raise ValueError("Cost calculation requires model, input_tokens, and output_tokens")
+        cost = calculate_cost(model, input_tokens, output_tokens)
     # ディレクトリ作成
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
 
     # 初期値
-    today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     daily_usage = {"date": today, "tokens": tokens, "cost": cost}
     total_usage = {"tokens": tokens, "cost": cost}
 
@@ -48,8 +93,8 @@ def log_usage(tokens, cost):
 
             # 今日の記録がなければ初期値を設定
             if not today_found:
-                daily_usage["tokens"] = 0
-                daily_usage["cost"] = 0
+                daily_usage["tokens"] = tokens
+                daily_usage["cost"] = cost
 
             # ログファイルを更新
             with open(LOG_FILE, "w") as f:
@@ -57,10 +102,13 @@ def log_usage(tokens, cost):
                 f.write(
                     f"Total: tokens: {total_usage['tokens']}, cost: {total_usage['cost']:.4f}\n\n"
                 )
-                # 既存のDaily行を再書き込み
-                for line in lines[:-1]:
-                    if line.startswith("Daily:"):
-                        f.write(line)
+                # 既存のDaily行を再書き込み（今日の分は除く）
+                if 'lines' in locals():
+                    for line in lines:
+                        if line.startswith("Daily:"):
+                            date_str = line.split(", ")[0].split(": ")[2]
+                            if date_str != today:
+                                f.write(line)
                 # 今日の記録を一番下に追加または更新
                 f.write(
                     f"Daily: date: {daily_usage['date']}, tokens: {daily_usage['tokens']}, cost: {daily_usage['cost']:.4f}\n"
@@ -83,8 +131,10 @@ def check_daily_limit():
                 lines = f.readlines()
                 for line in lines:
                     if line.startswith("Daily:"):
-                        today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-                        date, tok, cst = line.split(", ")
+                        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                        parts = line.split(", ")
+                        date = parts[0]
+                        tok = parts[1]
                         if date.split(": ")[2] == today:
                             tokens = int(tok.split(": ")[1])
                             if tokens > 990000:
