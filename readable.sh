@@ -14,9 +14,9 @@ if [ $# -eq 1 ]; then
 	filename=$(basename "$f")
 	# osascript -e "display dialog \"$filename 翻訳開始\""
 
-	# pdf2zh "$f" -s plamo -lo ja
-    pdf2zh "$f" -s openai:gpt-4.1 -lo ja
-    
+	pdf2zh "$f" -s plamo -lo ja
+    # pdf2zh "$f" -s openai:gpt-4.1 -lo ja
+
 	# osascript -e "display dialog \"$filename 翻訳終了\""
 
 	python check_and_run_server.py "$filename" > /tmp/server_log.txt  
