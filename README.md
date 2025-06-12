@@ -1,314 +1,157 @@
-<div align="center">
+# PDF Math Translate Chrome Extension
 
-English | [简体中文](docs/README_zh-CN.md) | [繁體中文](docs/README_zh-TW.md) | [日本語](docs/README_ja-JP.md) | [한국어](docs/README_ko-KR.md)
+📄→🌏 PDFを日本語に翻訳してブラウザで表示するChrome拡張機能
 
-<img src="./docs/images/banner.png" width="320px"  alt="PDF2ZH"/>
+![Extension Demo](https://img.shields.io/badge/status-ready-brightgreen)
+![Chrome](https://img.shields.io/badge/Chrome-Extension-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-<h2 id="title">PDFMathTranslate</h2>
+## ✨ 特徴
 
-<p>
-  <!-- PyPI -->
-  <a href="https://pypi.org/project/pdf2zh/">
-    <img src="https://img.shields.io/pypi/v/pdf2zh"></a>
-  <a href="https://pepy.tech/projects/pdf2zh">
-    <img src="https://static.pepy.tech/badge/pdf2zh"></a>
-  <a href="https://hub.docker.com/repository/docker/byaidu/pdf2zh">
-    <img src="https://img.shields.io/docker/pulls/byaidu/pdf2zh"></a>
-  <a href="https://gitcode.com/Byaidu/PDFMathTranslate/overview">
-    <img src="https://gitcode.com/Byaidu/PDFMathTranslate/star/badge.svg"></a>
-  <a href="https://huggingface.co/spaces/reycn/PDFMathTranslate-Docker">
-    <img src="https://img.shields.io/badge/%F0%9F%A4%97-Online%20Demo-FF9E0D"></a>
-  <a href="https://www.modelscope.cn/studios/AI-ModelScope/PDFMathTranslate">
-    <img src="https://img.shields.io/badge/ModelScope-Demo-blue"></a>
-  <a href="https://github.com/Byaidu/PDFMathTranslate/pulls">
-    <img src="https://img.shields.io/badge/contributions-welcome-green"></a>
-  <a href="https://t.me/+Z9_SgnxmsmA5NzBl">
-    <img src="https://img.shields.io/badge/Telegram-2CA5E0?style=flat-squeare&logo=telegram&logoColor=white"></a>
-  <!-- License -->
-  <a href="./LICENSE">
-    <img src="https://img.shields.io/github/license/Byaidu/PDFMathTranslate"></a>
-</p>
+- 🎯 **ワンクリック翻訳**: 拡張機能アイコンをクリックするだけで翻訳開始
+- 🎨 **動的アイコン**: PDF検出時にアイコンの色が変わり、翻訳可能状態を視覚的に表示
+- 📚 **arXiv対応**: 学術論文の翻訳に最適化
+- 🔄 **複数サービス**: Plamo、OpenAI GPT-4など複数の翻訳サービス対応
+- 🌐 **ブラウザ表示**: 翻訳結果を新しいタブで即座に表示
+- ⚡ **翻訳キャッシュ**: 翻訳済みファイルの自動再利用で高速化
+- 🔒 **重複防止**: 同一タブでの重複処理を自動防止
+- 👥 **複数プロファイル対応**: 異なるChromeプロファイル間での共有利用
+- 🎮 **リアルタイム進捗**: 翻訳中の状態をバッジとアイコンで表示
 
-<a href="https://trendshift.io/repositories/12424" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12424" alt="Byaidu%2FPDFMathTranslate | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+## 🎨 アイコン状態
 
-</div>
+| 状態 | 色 | 説明 |
+|------|----|----|
+| グレー | 🔘 | 通常状態 |
+| 緑 | 🟢 | PDFページ検出（翻訳可能） |
+| オレンジ | 🟠 | 翻訳中 |
 
-PDF scientific paper translation and bilingual comparison.
+## インストール方法
 
-- 📊 Preserve formulas, charts, table of contents, and annotations _([preview](#preview))_.
-- 🌐 Support [multiple languages](#language), and diverse [translation services](#services).
-- 🤖 Provides [commandline tool](#usage), [interactive user interface](#gui), and [Docker](#docker)
-
-Feel free to provide feedback in [GitHub Issues](https://github.com/Byaidu/PDFMathTranslate/issues) or [Telegram Group](https://t.me/+Z9_SgnxmsmA5NzBl).
-
-For details on how to contribute, please consult the [Contribution Guide](https://github.com/Byaidu/PDFMathTranslate/wiki/Contribution-Guide---%E8%B4%A1%E7%8C%AE%E6%8C%87%E5%8D%97).
-
-<h2 id="updates">Updates</h2>
-
-- [Mar. 3, 2025] Experimental support for the new backend [BabelDOC](https://github.com/funstory-ai/BabelDOC) WebUI added as an experimental option (by [@awwaawwa](https://github.com/awwaawwa))
-- [Feb. 22 2025] Better release CI and well-packaged windows-amd64 exe (by [@awwaawwa](https://github.com/awwaawwa))
-- [Dec. 24 2024] The translator now supports local models on [Xinference](https://github.com/xorbitsai/inference) _(by [@imClumsyPanda](https://github.com/imClumsyPanda))_
-- [Dec. 19 2024] Non-PDF/A documents are now supported using `-cp` _(by [@reycn](https://github.com/reycn))_
-- [Dec. 13 2024] Additional support for backend by _(by [@YadominJinta](https://github.com/YadominJinta))_
-- [Dec. 10 2024] The translator now supports OpenAI models on Azure _(by [@yidasanqian](https://github.com/yidasanqian))_
-
-<h2 id="preview">Preview</h2>
-
-<div align="center">
-<img src="./docs/images/preview.gif" width="80%"/>
-</div>
-
-<h2 id="demo">Online Service 🌟</h2>
-
-You can try our application out using either of the following demos:
-
-- [Public free service](https://pdf2zh.com/) online without installation _(recommended)_.
-- [Immersive Translate - BabelDOC](https://app.immersivetranslate.com/babel-doc/) 1000 free pages per month. _(recommended)_
-- [Demo hosted on HuggingFace](https://huggingface.co/spaces/reycn/PDFMathTranslate-Docker)
-- [Demo hosted on ModelScope](https://www.modelscope.cn/studios/AI-ModelScope/PDFMathTranslate) without installation.
-
-Note that the computing resources of the demo are limited, so please avoid abusing them.
-
-<h2 id="install">Installation and Usage</h2>
-
-### Methods
-
-For different use cases, we provide distinct methods to use our program:
-
-<details open>
-  <summary>1. UV install</summary>
-
-1. Python installed (3.10 <= version <= 3.12)
-2. Install our package:
-
-   ```bash
-   pip install uv
-   uv tool install --python 3.12 pdf2zh
-   ```
-
-3. Execute translation, files generated in [current working directory](https://chatgpt.com/share/6745ed36-9acc-800e-8a90-59204bd13444):
-
-   ```bash
-   pdf2zh document.pdf
-   ```
-
-</details>
-
-<details>
-  <summary>2. Windows exe</summary>
-
-1. Download pdf2zh-version-win64.zip from [release page](https://github.com/Byaidu/PDFMathTranslate/releases)
-
-2. Unzip and double-click `pdf2zh.exe` to run.
-
-</details>
-
-<details>
-  <summary>3. Graphic user interface</summary>
-1. Python installed (3.10 <= version <= 3.12)
-2. Install our package:
+### 1. Native Messaging Hostの設定
 
 ```bash
-pip install pdf2zh
+# Chrome用のNative Messaging Host設定ファイルを配置
+sudo mkdir -p /Library/Google/Chrome/NativeMessagingHosts/
+sudo cp com.pdfmathtranslate.nativehost.json /Library/Google/Chrome/NativeMessagingHosts/
+
+# 拡張機能IDを設定ファイルに追加する必要があります（後述）
 ```
 
-3. Start using in browser:
+### 2. Chrome拡張機能のインストール
 
-   ```bash
-   pdf2zh -i
-   ```
+1. Chromeで `chrome://extensions/` を開く
+2. 「デベロッパーモード」を有効にする
+3. 「パッケージ化されていない拡張機能を読み込む」をクリック
+4. `chrome-extension` フォルダを選択
+5. 拡張機能IDをコピーする
 
-4. If your browswer has not been started automatically, goto
+### 3. Native Messaging Host設定ファイルの更新
 
-   ```bash
-   http://localhost:7860/
-   ```
+**重要**: 拡張機能IDを確認してNative Host設定を更新してください。
 
-   <img src="./docs/images/gui.gif" width="500"/>
+```bash
+# 現在設定済みのExtension ID: ofkepkmomlelebfcghpgjfbngenhbhbh
+# 新しいプロファイルで異なるIDが表示された場合は以下の手順で追加:
 
-See [documentation for GUI](./docs/README_GUI.md) for more details.
+# 1. 現在の設定を確認
+cat /Library/Google/Chrome/NativeMessagingHosts/com.pdfmathtranslate.nativehost.json
 
-</details>
+# 2. 新しいIDを追加（複数プロファイル対応）
+sudo nano /Library/Google/Chrome/NativeMessagingHosts/com.pdfmathtranslate.nativehost.json
 
-<details>
-  <summary>4. Docker</summary>
-
-1. Pull and run:
-
-   ```bash
-   docker pull byaidu/pdf2zh
-   docker run -d -p 7860:7860 byaidu/pdf2zh
-   ```
-
-2. Open in browser:
-
-   ```
-   http://localhost:7860/
-   ```
-
-For docker deployment on cloud service:
-
-<div>
-<a href="https://www.heroku.com/deploy?template=https://github.com/Byaidu/PDFMathTranslate">
-  <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy" height="26"></a>
-<a href="https://render.com/deploy">
-  <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Koyeb" height="26"></a>
-<a href="https://zeabur.com/templates/5FQIGX?referralCode=reycn">
-  <img src="https://zeabur.com/button.svg" alt="Deploy on Zeabur" height="26"></a>
-<a href="https://app.koyeb.com/deploy?type=git&builder=buildpack&repository=github.com/Byaidu/PDFMathTranslate&branch=main&name=pdf-math-translate">
-  <img src="https://www.koyeb.com/static/images/deploy/button.svg" alt="Deploy to Koyeb" height="26"></a>
-</div>
-
-</details>
-
-<details>
-  <summary>5. Zotero Plugin</summary>
-
-
-See [Zotero PDF2zh](https://github.com/guaguastandup/zotero-pdf2zh) for more details.
-
-</details>
-
-<details>
-  <summary>6. Commandline</summary>
-
-1. Python installed (3.10 <= version <= 3.12)
-2. Install our package:
-
-   ```bash
-   pip install pdf2zh
-   ```
-
-3. Execute translation, files generated in [current working directory](https://chatgpt.com/share/6745ed36-9acc-800e-8a90-59204bd13444):
-
-   ```bash
-   pdf2zh document.pdf
-   ```
-
-</details>
-
-> [!TIP]
->
-> - If you're using Windows and cannot open the file after downloading, please install [vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe) and try again.
->
-> - If you cannot access Docker Hub, please try the image on [GitHub Container Registry](https://github.com/Byaidu/PDFMathTranslate/pkgs/container/pdfmathtranslate).
-> ```bash
-> docker pull ghcr.io/byaidu/pdfmathtranslate
-> docker run -d -p 7860:7860 ghcr.io/byaidu/pdfmathtranslate
-> ```
-
-### Unable to install?
-
-The present program needs an AI model(`wybxc/DocLayout-YOLO-DocStructBench-onnx`) before working and some users are not able to download due to network issues. If you have a problem with downloading this model, we provide a workaround using the following environment variable:
-
-```shell
-set HF_ENDPOINT=https://hf-mirror.com
+# allowed_origins に新しいIDを追加:
+# "allowed_origins": [
+#   "chrome-extension://ofkepkmomlelebfcghpgjfbngenhbhbh/",
+#   "chrome-extension://新しいプロファイルのID/"
+# ]
 ```
 
-For PowerShell user:
+**Extension IDの確認方法**:
+1. `chrome://extensions/` を開く
+2. 「PDF Math Translate」拡張機能のIDをコピー
+3. 上記設定ファイルに追加
 
-```shell
-$env:HF_ENDPOINT = https://hf-mirror.com
+## 📖 使い方
+
+1. **arXivなどのPDFページを開く**
+2. **拡張機能アイコンが緑色に変わることを確認**
+3. **アイコンをクリック** （翻訳が自動開始）
+4. **翻訳中はアイコンがオレンジ色に変わる**
+5. **完了すると通知が表示され、新しいタブで翻訳結果が開く**
+
+## 🌐 対応サイト
+
+- ✅ [arXiv.org](https://arxiv.org) - 学術論文アーカイブ
+- ✅ 直接PDFファイルのURL
+- ✅ PDFビューワーページ
+- ✅ その他のPDF表示サイト
+
+## 🛠️ 技術仕様
+
+### ファイル構成
+
+```
+pdf-math-translate-extension/
+├── manifest.json                   # 拡張機能の設定
+├── background.js                   # バックグラウンド処理
+├── content.js                      # PDF検出とページ注入
+├── pdf2zh_native_host.py          # Native Messaging Host
+├── com.pdfmathtranslate.nativehost.json  # Native Host設定
+├── icons/                          # 3状態のアイコン
+│   ├── icon*.png                  # 通常時（グレー）
+│   ├── icon*_active.png           # PDF検出時（緑）
+│   └── icon*_processing.png       # 翻訳中（オレンジ）
+└── README.md
 ```
 
-If the solution does not work to you / you encountered other issues, please refer to [frequently asked questions](https://github.com/Byaidu/PDFMathTranslate/wiki#-faq--%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98).
+### 権限
 
-<h2 id="usage">Advanced Options</h2>
+- `activeTab`: 現在のタブにアクセス
+- `nativeMessaging`: Python Hostとの通信
+- `storage`: 設定の保存
+- `notifications`: 翻訳完了通知
 
-Execute the translation command in the command line to generate the translated document `example-mono.pdf` and the bilingual document `example-dual.pdf` in the current working directory. Use Google as the default translation service. More support translation services can find [HERE](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#services).
+## トラブルシューティング
 
-<img src="./docs/images/cmd.explained.png" width="580px"  alt="cmd"/>
+### PDFが検出されない場合
+- ページを再読み込みしてください
+- URLにPDFが含まれているか確認してください
+- 拡張機能のアイコンが緑色に変わらない場合は対応サイトではない可能性があります
 
-In the following table, we list all advanced options for reference:
+### 翻訳が失敗する場合
+- **Extension ID確認**: `chrome://extensions/` でIDが設定ファイルと一致するか確認
+- **Native Host設定**: `cat /Library/Google/Chrome/NativeMessagingHosts/com.pdfmathtranslate.nativehost.json`
+- **ログ確認**: `/tmp/pdf2zh_native_host.log` で詳細エラーを確認
+- **pdf2zh動作確認**: コマンドラインでpdf2zhが動作するか確認
 
-| Option                | Function                                                                                                      | Example                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| files                 | Local files                                                                                                   | `pdf2zh ~/local.pdf`                           |
-| links                 | Online files                                                                                                  | `pdf2zh http://arxiv.org/paper.pdf`            |
-| `-i`                  | [Enter GUI](#gui)                                                                                             | `pdf2zh -i`                                    |
-| `-p`                  | [Partial document translation](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#partial) | `pdf2zh example.pdf -p 1`                      |
-| `-li`                 | [Source language](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#languages)            | `pdf2zh example.pdf -li en`                    |
-| `-lo`                 | [Target language](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#languages)            | `pdf2zh example.pdf -lo zh`                    |
-| `-s`                  | [Translation service](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#services)         | `pdf2zh example.pdf -s deepl`                  |
-| `-t`                  | [Multi-threads](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#threads)                | `pdf2zh example.pdf -t 1`                      |
-| `-o`                  | Output dir                                                                                                    | `pdf2zh example.pdf -o output`                 |
-| `-f`, `-c`            | [Exceptions](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#exceptions)                | `pdf2zh example.pdf -f "(MS.*)"`               |
-| `-cp`                 | Compatibility Mode                                                                                            | `pdf2zh example.pdf --compatible`              |
-| `--skip-subset-fonts` | [Skip font subset](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#font-subset)         | `pdf2zh example.pdf --skip-subset-fonts`       |
-| `--ignore-cache`      | [Ignore translate cache](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#cache)         | `pdf2zh example.pdf --ignore-cache`            |
-| `--share`             | Public link                                                                                                   | `pdf2zh -i --share`                            |
-| `--authorized`        | [Authorization](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#auth)                   | `pdf2zh -i --authorized users.txt [auth.html]` |
-| `--prompt`            | [Custom Prompt](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#prompt)                 | `pdf2zh --prompt [prompt.txt]`                 |
-| `--onnx`              | [Use Custom DocLayout-YOLO ONNX model]                                                                        | `pdf2zh --onnx [onnx/model/path]`              |
-| `--serverport`        | [Use Custom WebUI port]                                                                                       | `pdf2zh --serverport 7860`                     |
-| `--dir`               | [batch translate]                                                                                             | `pdf2zh --dir /path/to/translate/`             |
-| `--config`            | [configuration file](https://github.com/Byaidu/PDFMathTranslate/blob/main/docs/ADVANCED.md#cofig)             | `pdf2zh --config /path/to/config/config.json`  |
-| `--serverport`        | [custom gradio server port]                                                                                   | `pdf2zh --serverport 7860`                     |
-| `--babeldoc`          | Use Experimental backend [BabelDOC](https://funstory-ai.github.io/BabelDOC/) to translate                     | `pdf2zh --babeldoc` -s openai example.pdf      |
-| `--mcp`               | Enable MCP STDIO mode                                                                                         | `pdf2zh --mcp`                                 |
-| `--sse`               | Enable MCP SSE mode                                                                                           | `pdf2zh --mcp --sse`                           |
+### 権限エラーが発生する場合
+- `pdf2zh_native_host.py` に実行権限があるか確認: `chmod +x pdf2zh_native_host.py`
+- Native Messaging Host設定ファイルのパスが正しいか確認
+- システム設定ファイルが最新か確認: `sudo cp com.pdfmathtranslate.nativehost.json /Library/Google/Chrome/NativeMessagingHosts/`
 
-For detailed explanations, please refer to our document about [Advanced Usage](./docs/ADVANCED.md) for a full list of each option.
+### 複数プロファイルで動作しない場合
+- 各プロファイルのExtension IDを確認し、Native Host設定の`allowed_origins`に全て追加されているか確認
+- Extension IDは通常プロファイルごとに異なります
 
-<h2 id="downstream">Secondary Development (APIs)</h2>
+### "Access to the specified native messaging host is forbidden"エラー
+- Extension IDが設定ファイルに正しく記載されているか確認
+- 設定ファイルをシステムディレクトリに正しくコピーしているか確認
 
-For downstream applications, please refer to our document about [API Details](./docs/APIS.md) for futher information about:
+## 開発者向け
 
-- [Python API](./docs/APIS.md#api-python), how to use the program in other Python programs
-- [HTTP API](./docs/APIS.md#api-http), how to communicate with a server with the program installed
+### デバッグ
 
-<h2 id="todo">TODOs</h2>
+1. Chrome DevToolsでバックグラウンドページを開く
+2. Console でログを確認
+3. Native Messaging Hostのログは `/tmp/pdf2zh_native_host.log` で確認
 
-- [ ] Parse layout with DocLayNet based models, [PaddleX](https://github.com/PaddlePaddle/PaddleX/blob/17cc27ac3842e7880ca4aad92358d3ef8555429a/paddlex/repo_apis/PaddleDetection_api/object_det/official_categories.py#L81), [PaperMage](https://github.com/allenai/papermage/blob/9cd4bb48cbedab45d0f7a455711438f1632abebe/README.md?plain=1#L102), [SAM2](https://github.com/facebookresearch/sam2)
+### カスタマイズ
 
-- [ ] Fix page rotation, table of contents, format of lists
+- 翻訳サービスを追加: `popup.html` の `serviceSelect` オプションを編集
+- 対応サイトを追加: `manifest.json` の `content_scripts.matches` を編集
+- UIのカスタマイズ: `popup.html` と `popup.js` を編集
 
-- [ ] Fix pixel formula in old papers
+## ライセンス
 
-- [ ] Async retry except KeyboardInterrupt
-
-- [ ] Knuth–Plass algorithm for western languages
-
-- [ ] Support non-PDF/A files
-
-- [ ] Plugins of [Zotero](https://github.com/zotero/zotero) and [Obsidian](https://github.com/obsidianmd/obsidian-releases)
-
-<h2 id="acknowledgement">Acknowledgements</h2>
-
-- [Immersive Translation](https://immersivetranslate.com) sponsors monthly Pro membership redemption codes for active contributors to this project, see details at: [CONTRIBUTOR_REWARD.md](https://github.com/funstory-ai/BabelDOC/blob/main/docs/CONTRIBUTOR_REWARD.md)
-
-- New backend: [BabelDOC](https://github.com/funstory-ai/BabelDOC)
-
-- Document merging: [PyMuPDF](https://github.com/pymupdf/PyMuPDF)
-
-- Document parsing: [Pdfminer.six](https://github.com/pdfminer/pdfminer.six)
-
-- Document extraction: [MinerU](https://github.com/opendatalab/MinerU)
-
-- Document Preview: [Gradio PDF](https://github.com/freddyaboulton/gradio-pdf)
-
-- Multi-threaded translation: [MathTranslate](https://github.com/SUSYUSTC/MathTranslate)
-
-- Layout parsing: [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO)
-
-- Document standard: [PDF Explained](https://zxyle.github.io/PDF-Explained/), [PDF Cheat Sheets](https://pdfa.org/resource/pdf-cheat-sheets/)
-
-- Multilingual Font: [Go Noto Universal](https://github.com/satbyy/go-noto-universal)
-
-<h2 id="contrib">Contributors</h2>
-
-<a href="https://github.com/Byaidu/PDFMathTranslate/graphs/contributors">
-  <img src="https://opencollective.com/PDFMathTranslate/contributors.svg?width=890&button=false" />
-</a>
-
-![Alt](https://repobeats.axiom.co/api/embed/dfa7583da5332a11468d686fbd29b92320a6a869.svg "Repobeats analytics image")
-
-<h2 id="star_hist">Star History</h2>
-
-<a href="https://star-history.com/#Byaidu/PDFMathTranslate&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Byaidu/PDFMathTranslate&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Byaidu/PDFMathTranslate&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Byaidu/PDFMathTranslate&type=Date"/>
- </picture>
-</a>
+このプロジェクトのライセンスに従います。

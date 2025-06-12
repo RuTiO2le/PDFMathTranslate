@@ -1,0 +1,9 @@
+{
+  "name": "com.pdfmathtranslate.nativehost",
+  "description": "PDF Math Translate Native Messaging Host",
+  "path": "/Users/ytakeda/codes/pdf-math-translate-extension/pdf2zh_native_host.py",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://ofkepkmomlelebfcghpgjfbngenhbhbh/"
+  ]
+}

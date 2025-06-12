@@ -32,9 +32,9 @@ logger = logging.getLogger(__name__)
 class NativeMessagingHost:
     def __init__(self):
         self.base_dir = Path(__file__).parent
-        self.translated_dir = self.base_dir / "translated_pdf"
+        self.translated_dir = Path("/Users/ytakeda/codes/PDFMathTranslate/translated_pdf")
         self.translated_dir.mkdir(exist_ok=True)
-        self.server_port = 8081
+        self.server_port = None  # 動的に設定される
         
     def read_message(self) -> Optional[Dict[str, Any]]:
         """Chrome拡張機能からのメッセージを読み取り"""
@@ -96,25 +96,123 @@ class NativeMessagingHost:
             logger.error(f"Error downloading PDF: {e}")
             raise
     
-    def translate_pdf(self, pdf_path: str, service: str = "plamo", language: str = "ja") -> str:
+    def translate_pdf(self, pdf_path: str, service: str = "plamo", language: str = "ja", output_format: str = "dual") -> str:
         """pdf2zhを使用してPDFを翻訳"""
         try:
-            # pdf2zhコマンドを実行
-            cmd = ["pdf2zh", pdf_path, "-s", service, "-lo", language]
+            # 翻訳済みファイルが既に存在するか確認
+            pdf_name = os.path.basename(pdf_path)
+            pdf_name_without_ext = os.path.splitext(pdf_name)[0]
+            
+            translated_path_dual = self.translated_dir / f"{pdf_name_without_ext}-dual.pdf"
+            translated_path_mono = self.translated_dir / f"{pdf_name_without_ext}-mono.pdf"
+            
+            # 既に翻訳済みの場合はスキップ
+            if translated_path_dual.exists():
+                logger.info(f"Translation already exists: {translated_path_dual}")
+                return str(translated_path_dual)
+            elif translated_path_mono.exists():
+                logger.info(f"Translation already exists: {translated_path_mono}")
+                return str(translated_path_mono)
+            
+            logger.info("No existing translation found. Starting translation...")
+            
+            # 仮想環境のpdf2zhコマンドを直接使用
+            pdf2zh_cmd = "/Users/ytakeda/codes/PDFMathTranslate/.venv/bin/pdf2zh"
+            
+            # コマンドが存在するか確認
+            if not os.path.exists(pdf2zh_cmd):
+                logger.error(f"pdf2zh command not found at: {pdf2zh_cmd}")
+                raise Exception(f"pdf2zh command not found at: {pdf2zh_cmd}")
+            
+            # 翻訳コマンドを構築
+            cmd = [pdf2zh_cmd, pdf_path, "-s", service, "-lo", language]
+            
+            # 出力形式の設定
+            if output_format == "mono":
+                cmd.append("--mono")
+            # dual形式はデフォルトなので特別なオプションは不要
+            
+            # デバッグ用：--debugオプションをコメントアウト（正常に動くかテスト）
+            # cmd.append("--debug")
+            # フォント処理エラー回避用オプション（現在コメントアウト中）
+            # cmd.append("--skip-subset-fonts")
             logger.info(f"Running command: {' '.join(cmd)}")
             
-            # 仮想環境をアクティベート
-            venv_path = self.base_dir / ".venv" / "bin" / "activate"
-            if venv_path.exists():
-                cmd = ["/bin/bash", "-c", f"source {venv_path} && {' '.join(cmd)}"]
+            # 作業ディレクトリをPDFMathTranslateに設定
+            working_dir = "/Users/ytakeda/codes/PDFMathTranslate"
             
-            result = subprocess.run(
+            # 環境変数を継承（APIキーなど）
+            env = os.environ.copy()
+            
+            # zshrcから環境変数を読み込み（一時的にコメントアウト）
+            # config.jsonでbase_urlが設定されているため、環境変数読み込みは必須ではない
+            logger.info("Skipping zshrc environment loading - using config.json settings")
+            
+            # デバッグ用：環境変数をログ出力
+            important_vars = ['PLAMO_API_KEY', 'PLAMO_TRANSLATE_API_KEY', 'PLAMO_TRANSLATE_BASE_URL', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
+            for var in important_vars:
+                if var in env:
+                    logger.info(f"Environment variable {var}: {'*' * 10}")
+                else:
+                    logger.warning(f"Environment variable {var}: NOT SET")
+            
+            logger.info(f"Starting pdf2zh subprocess...")
+            start_time = time.time()
+            
+            # 非同期でプロセスを実行し、進捗をログ出力
+            process = subprocess.Popen(
                 cmd,
-                cwd=str(self.base_dir),
-                capture_output=True,
+                cwd=working_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,  # 標準入力を閉じる
                 text=True,
-                timeout=300  # 5分でタイムアウト
+                env=env
             )
+            
+            # プロセスの進行状況を監視
+            timeout_seconds = 180  # 3分でタイムアウト（一時的に延長）
+            poll_interval = 5     # 5秒ごとにチェック
+            elapsed = 0
+            
+            while process.poll() is None and elapsed < timeout_seconds:
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+                logger.info(f"pdf2zh still running... elapsed: {elapsed}s / {timeout_seconds}s")
+                
+                # プロセスが生きているかチェック
+                if process.poll() is not None:
+                    break
+            
+            if process.poll() is None:
+                # タイムアウト
+                logger.error(f"pdf2zh process timed out after {elapsed}s - killing process")
+                process.kill()
+                stdout, stderr = process.communicate()
+                elapsed_time = time.time() - start_time
+                logger.error(f"Process killed after {elapsed_time:.2f} seconds")
+                logger.error(f"Stdout: {stdout}")
+                logger.error(f"Stderr: {stderr}")
+                raise Exception("Translation timed out")
+            else:
+                # 正常完了
+                stdout, stderr = process.communicate()
+                result_code = process.returncode
+                elapsed_time = time.time() - start_time
+                logger.info(f"pdf2zh completed in {elapsed_time:.2f} seconds")
+                logger.info(f"Return code: {result_code}")
+                logger.info(f"Stdout: {stdout}")
+                if stderr:
+                    logger.warning(f"Stderr: {stderr}")
+                
+                # 結果オブジェクトを作成
+                class Result:
+                    def __init__(self, returncode, stdout, stderr):
+                        self.returncode = returncode
+                        self.stdout = stdout
+                        self.stderr = stderr
+                
+                result = Result(result_code, stdout, stderr)
             
             if result.returncode != 0:
                 logger.error(f"pdf2zh failed: {result.stderr}")
@@ -124,10 +222,31 @@ class NativeMessagingHost:
             
             # 翻訳済みファイルのパスを取得
             pdf_name = os.path.basename(pdf_path)
-            translated_path = self.translated_dir / pdf_name
+            pdf_name_without_ext = os.path.splitext(pdf_name)[0]
             
-            if not translated_path.exists():
-                raise Exception(f"Translated file not found: {translated_path}")
+            # 出力形式に応じて適切なファイルを探す
+            translated_path_dual = self.translated_dir / f"{pdf_name_without_ext}-dual.pdf"
+            translated_path_mono = self.translated_dir / f"{pdf_name_without_ext}-mono.pdf"
+            
+            if output_format == "mono":
+                # mono形式が指定された場合
+                if translated_path_mono.exists():
+                    translated_path = translated_path_mono
+                elif translated_path_dual.exists():
+                    # monoが存在しない場合はdualを使用
+                    translated_path = translated_path_dual
+                    logger.info("Mono format requested but not found, using dual format")
+                else:
+                    raise Exception(f"Translated file not found: {translated_path_mono} or {translated_path_dual}")
+            else:
+                # dual形式（デフォルト）
+                if translated_path_dual.exists():
+                    translated_path = translated_path_dual
+                elif translated_path_mono.exists():
+                    translated_path = translated_path_mono
+                    logger.info("Dual format requested but not found, using mono format")
+                else:
+                    raise Exception(f"Translated file not found: {translated_path_dual} or {translated_path_mono}")
             
             return str(translated_path)
             
@@ -135,32 +254,59 @@ class NativeMessagingHost:
             logger.error("pdf2zh command timed out")
             raise Exception("Translation timed out")
         except Exception as e:
+            import traceback
             logger.error(f"Error translating PDF: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise
     
     def start_server(self, filename: str) -> str:
         """翻訳結果を表示するサーバーを起動"""
         try:
-            # check_and_run_server.pyを実行
-            server_script = self.base_dir / "check_and_run_server.py"
+            # PDFMathTranslateディレクトリのcheck_and_run_server.pyを実行
+            server_script = Path("/Users/ytakeda/codes/PDFMathTranslate/check_and_run_server.py")
             if not server_script.exists():
-                raise Exception("Server script not found")
+                logger.warning("check_and_run_server.py not found, returning file path instead")
+                # サーバースクリプトがない場合は、ファイルパスを直接返す
+                return f"file://{filename}"
             
-            cmd = ["python", str(server_script), filename]
+            # Pythonコマンドを仮想環境のものを使用
+            python_cmd = "/Users/ytakeda/codes/PDFMathTranslate/.venv/bin/python"
+            cmd = [python_cmd, str(server_script), filename]
             logger.info(f"Starting server: {' '.join(cmd)}")
             
             # バックグラウンドでサーバーを起動
-            subprocess.Popen(
+            process = subprocess.Popen(
                 cmd,
-                cwd=str(self.base_dir),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                cwd="/Users/ytakeda/codes/PDFMathTranslate",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
             )
             
             # サーバーの起動を待つ
             time.sleep(2)
             
-            url = f"http://localhost:{self.server_port}/{filename}"
+            # プロセスの出力を取得（check_and_run_server.pyは正常終了する）
+            stdout, stderr = process.communicate()
+            logger.info(f"Server script output: stdout={stdout}, stderr={stderr}")
+            
+            # プロセスの出力からポート番号を取得する必要があるが、
+            # check_and_run_server.pyが出力するメッセージから推測する
+            # 簡易的に8081または範囲内のポートを想定
+            for port in [8081] + list(range(10000, 10100)):
+                try:
+                    import socket
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        if s.connect_ex(("localhost", port)) == 0:
+                            self.server_port = port
+                            break
+                except:
+                    continue
+            
+            if self.server_port is None:
+                self.server_port = 8081  # フォールバック
+            
+            url = f"http://localhost:{self.server_port}/translated_pdf/{os.path.basename(filename)}"
             logger.info(f"Server started, URL: {url}")
             
             return url
@@ -179,19 +325,21 @@ class NativeMessagingHost:
             options = message.get('options', {})
             service = options.get('service', 'plamo')
             language = options.get('language', 'ja')
+            output_format = options.get('outputFormat', 'dual')
             
             logger.info(f"Processing translation request for: {pdf_url}")
+            logger.info(f"Translation options: service={service}, language={language}, format={output_format}")
             
             # PDFをダウンロード
             pdf_path = self.download_pdf(pdf_url)
             
             try:
                 # PDF翻訳
-                translated_path = self.translate_pdf(pdf_path, service, language)
+                translated_path = self.translate_pdf(pdf_path, service, language, output_format)
                 filename = os.path.basename(translated_path)
                 
-                # サーバー起動
-                server_url = self.start_server(filename)
+                # サーバー起動（フルパスを渡す）
+                server_url = self.start_server(translated_path)
                 
                 return {
                     'success': True,
